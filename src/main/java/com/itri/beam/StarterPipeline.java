@@ -71,11 +71,8 @@ public class StarterPipeline {
 
   public static void main(String[] args) {
 	//args=new String[]{"--runner=SparkRunner"};
-	//Pipeline p = Pipeline.create(PipelineOptionsFactory.fromArgs(args).withValidation().create());
-    
+	//Pipeline p = Pipeline.create(PipelineOptionsFactory.fromArgs(args).withValidation().create());    
 	//Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-      
-
     //Pipeline p = Pipeline.create(options);
 	  
 	SparkPipelineOptions options = PipelineOptionsFactory.fromArgs(args).
@@ -85,10 +82,9 @@ public class StarterPipeline {
 	
 	//options.setEnableSparkMetricSinks(true);
 	//options.setBatchIntervalMillis(10L);
-	//options.setMaxRecordsPerBatch(500L);
+	options.setMaxRecordsPerBatch(2000L);
 	options.setSparkMaster("local[4]");
 	//options.setStreaming(false);
-	//options.set
 	//options.setSparkMaster("spark://ubuntu8:7077");
 	//System.out.println("isStreaming?"+options.isStreaming());
     //System.out.println("Master?"+options.getSparkMaster());
@@ -101,16 +97,16 @@ public class StarterPipeline {
     
     
     PCollection<KV<Integer, String>> readData = p.apply(KafkaIO.<Integer, String>read()
-       .withBootstrapServers("http://ubuntu7:9092")
+       .withBootstrapServers("ubuntu7:9092")
        .withTopic("kafkasink")
        .withKeyDeserializer(IntegerDeserializer.class)
        .withValueDeserializer(StringDeserializer.class)       
        //.updateConsumerProperties(immutableMap)
-       //.withMaxNumRecords(100000)
+       //.withMaxNumRecords(500000)
        .withoutMetadata());
     
     PCollection<KV<Integer, String>> readData1 = readData.
-    		apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardSeconds(1)))
+    apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardSeconds(1)))
       .triggering(AfterWatermark.pastEndOfWindow()
         .withLateFirings(AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.ZERO)))
       .withAllowedLateness(Duration.ZERO)
@@ -119,7 +115,7 @@ public class StarterPipeline {
     PCollection<KV<String, String>> readData2 = readData1.apply(ParDo.of(new DoFn<KV<Integer, String>,KV<String, String>>(){
 			@ProcessElement
 			public void test(ProcessContext c){		
-				System.out.println("datasize in window  datasize in window  datasize in window");
+				System.out.println("data in window" + c.element());
 				c.output(KV.of("M1",c.element().getValue()));
 			}
 	    }));
@@ -142,8 +138,8 @@ public class StarterPipeline {
         	  query.setDouble(1, count);
         	}
        	  }));
-    
-    p.run();
+    //p.run();
+    p.run().waitUntilFinish();
     
     /*
      Pipeline p = Pipeline.create(
