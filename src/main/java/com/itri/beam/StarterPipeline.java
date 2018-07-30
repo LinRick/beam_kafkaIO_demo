@@ -25,15 +25,10 @@ import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
-import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -41,14 +36,8 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
-import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.beam.sdk.options.*;
-import avro.shaded.com.google.common.collect.ImmutableMap;
-
 
 /**
  * A starter example for writing Beam programs.
@@ -67,41 +56,20 @@ import avro.shaded.com.google.common.collect.ImmutableMap;
  *   --runner=DataflowRunner
  */
 public class StarterPipeline {
-  private static final Logger LOG = LoggerFactory.getLogger(StarterPipeline.class);
 
   public static void main(String[] args) {
-	//args=new String[]{"--runner=SparkRunner"};
-	//Pipeline p = Pipeline.create(PipelineOptionsFactory.fromArgs(args).withValidation().create());    
-	//Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-    //Pipeline p = Pipeline.create(options);
-	  
 	SparkPipelineOptions options = PipelineOptionsFactory.fromArgs(args).
-			withValidation().as(SparkPipelineOptions.class);    
+	  withValidation().as(SparkPipelineOptions.class);    
 	options.setRunner(SparkRunner.class);	
-	Pipeline p = Pipeline.create(options);
-	
-	//options.setEnableSparkMetricSinks(true);
-	//options.setBatchIntervalMillis(10L);
-	options.setMaxRecordsPerBatch(2000L);
-	options.setSparkMaster("local[4]");
-	//options.setStreaming(false);
-	//options.setSparkMaster("spark://ubuntu8:7077");
-	//System.out.println("isStreaming?"+options.isStreaming());
-    //System.out.println("Master?"+options.getSparkMaster());
-    //System.out.println("Runner?"+options.getRunner());
-    
-    /*ImmutableMap<String, Object> immutableMap = ImmutableMap.<String, Object>builder()    		
-       .put("group.id", "test-group")
-       .put("enable.auto.commit", "true")       
-       .build();*/
-    
+	Pipeline p = Pipeline.create(options); 
+	options.setMaxRecordsPerBatch(1000L);	
+	options.setSparkMaster("spark://ubuntu8:7077");
     
     PCollection<KV<Integer, String>> readData = p.apply(KafkaIO.<Integer, String>read()
        .withBootstrapServers("ubuntu7:9092")
        .withTopic("kafkasink")
        .withKeyDeserializer(IntegerDeserializer.class)
        .withValueDeserializer(StringDeserializer.class)       
-       //.updateConsumerProperties(immutableMap)
        //.withMaxNumRecords(500000)
        .withoutMetadata());
     
@@ -113,12 +81,12 @@ public class StarterPipeline {
       .discardingFiredPanes());
     
     PCollection<KV<String, String>> readData2 = readData1.apply(ParDo.of(new DoFn<KV<Integer, String>,KV<String, String>>(){
-			@ProcessElement
-			public void test(ProcessContext c){		
-				System.out.println("data in window" + c.element());
-				c.output(KV.of("M1",c.element().getValue()));
-			}
-	    }));
+	  @ProcessElement
+	    public void test(ProcessContext c){		
+		  System.out.println("data in window:" + c.element());
+			c.output(KV.of("M1",c.element().getValue()));
+		}
+	  }));
    
     
     PCollection<KV<String, Long>> countData =readData2.apply(Count.perKey());
@@ -138,25 +106,8 @@ public class StarterPipeline {
         	  query.setDouble(1, count);
         	}
        	  }));
-    //p.run();
-    p.run().waitUntilFinish();
-    
-    /*
-     Pipeline p = Pipeline.create(
-       PipelineOptionsFactory.fromArgs(args).withValidation().create());
-       p.apply(Create.of("Hello", "World"))
-    .apply(MapElements.via(new SimpleFunction<String, String>() {
-      @Override
-      public String apply(String input) {
-        return input.toUpperCase();
-      }
-    }))
-    .apply(ParDo.of(new DoFn<String, Void>() {
-      @ProcessElement
-      public void processElement(ProcessContext c)  {
-        LOG.info(c.element());
-      }
-    }));
-    p.run();*/
+
+    p.run().waitUntilFinish();    
+
   }
 }

@@ -19,7 +19,6 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.codehaus.jackson.map.ser.std.StringSerializer;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +73,9 @@ public class KafkaToKafka {
 	        Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 	        LOG.info(options.toString());
 	        System.out.println(options.toString());
+	        
 	        options.setRunner(SparkRunner.class);
+	        options.setDuration(1000000L);
 	        Pipeline pipeline = Pipeline.create(options);
 	        
 
